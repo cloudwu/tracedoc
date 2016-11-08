@@ -98,6 +98,9 @@ local function doc_copy(doc, k, sub_doc, result, prefix)
 end
 
 function tracedoc.commit(doc, result, prefix)
+	if doc._ignore then
+		return result
+	end
 	local lastversion = doc._lastversion
 	local changes = doc._changes
 	local keys = changes._keys
@@ -136,6 +139,10 @@ function tracedoc.commit(doc, result, prefix)
 		end
 	end
 	return result
+end
+
+function tracedoc.ignore(doc, enable)
+	rawset(doc, "_ignore", enable)	-- ignore it during commit when enable
 end
 
 return tracedoc
