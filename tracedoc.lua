@@ -1,6 +1,7 @@
 local next = next
 local pairs = pairs
 local setmetatable = setmetatable
+local getmetatable = getmetatable
 local type = type
 local rawset = rawset
 
@@ -28,6 +29,7 @@ local function doc_change(t, k, v)
 end
 
 tracedoc.null = setmetatable({} , { __tostring = function() return "NULL" end })	-- nil
+local tracedoc_type = setmetatable({}, { __tostring = function() return "TRACEDOC" end })
 
 function tracedoc.new(init)
 	local doc = {
@@ -44,6 +46,7 @@ function tracedoc.new(init)
 		__index = doc._changes,
 		__pairs = doc_pairs,
 		__len = doc_len,
+		__metatable = tracedoc_type,	-- avoid copy by ref
 	})
 	if init then
 		for k,v in pairs(init) do
@@ -55,6 +58,11 @@ function tracedoc.new(init)
 end
 
 local function doc_copy(doc, k, sub_doc, result, prefix)
+	local vt = getmetatable(sub_doc)
+	if vt ~= tracedoc_type and vt ~= nil then
+		doc[k] = sub_doc	-- copy ref because sub_doc is an object
+		return sub_doc
+	end
 	local target_doc = doc[k]
 	if type(target_doc) ~= "table" then
 		target_doc = tracedoc.new()
@@ -118,7 +126,7 @@ function tracedoc.commit(doc, result, prefix)
 		doc._changes[k] = nil
 	end
 	for k,v in pairs(lastversion) do
-		if type(v) == "table" then
+		if getmetatable(v) == tracedoc_type then
 			if result then
 				local key = (prefix and prefix .. k or k) .. "."
 				tracedoc.commit(v, result, key)
