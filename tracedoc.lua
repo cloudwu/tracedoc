@@ -175,6 +175,7 @@ function tracedoc.changeset(map)
 			local f = v[1]
 			local k = v[2]
 			local tq = type(set.watching[k])
+			genkey(set.keys, k)
 			if tq == "nil" then
 				set.watching[k] = f
 				set.watching_n = set.watching_n + 1
@@ -188,7 +189,7 @@ function tracedoc.changeset(map)
 		else
 			table.insert(set.mapping, { table.unpack(v) })
 			for i = 2, #v do
-				genkey(set.keys, v[2])
+				genkey(set.keys, v[i])
 			end
 		end
 	end
@@ -208,8 +209,7 @@ local function do_funcs(doc, funcs, v)
 	end
 end
 
-local function do_mapping(doc, mapping, changes, keys)
-	local args = {}
+local function do_mapping(doc, mapping, changes, keys, args)
 	local n = #mapping
 	for i=2,n do
 		local key = mapping[i]
@@ -224,7 +224,7 @@ local function do_mapping(doc, mapping, changes, keys)
 	mapping[1](doc, table.unpack(args,1,n-1))
 end
 
-function tracedoc.mapset(doc, set, c)
+function tracedoc.mapchange(doc, set, c)
 	local changes = tracedoc.commit(doc, c or {})
 	local changes_n = changes._n or 0
 	if changes_n == 0 then
@@ -250,16 +250,38 @@ function tracedoc.mapset(doc, set, c)
 	end
 	-- mapping
 	local keys = set.keys
+	local tmp = {}
 	for _, mapping in ipairs(set.mapping) do
 		for i=2,#mapping do
 			local key = mapping[i]
 			if changes[key] then
-				do_mapping(doc, mapping, changes, keys)
+				do_mapping(doc, mapping, changes, keys, tmp)
 				break
 			end
 		end
 	end
 	return changes
+end
+
+function tracedoc.mapupdate(doc, set, prefix)
+	local lprefix = #prefix
+	local keys = set.keys
+	for key, funcs in pairs(set.watching) do
+		if key:sub(1, lprefix) == prefix then
+			local v = keys[key](doc)
+			do_funcs(doc, funcs, v)
+		end
+	end
+	local args = {}
+	for _, mapping in ipairs(set.mapping) do
+		local n = #mapping
+		for i=2,n do
+			local key = mapping[i]
+			local v = keys[key](doc)
+			args[i-1] = v
+		end
+		mapping[1](doc, table.unpack(args,1,n-1))
+	end
 end
 
 return tracedoc

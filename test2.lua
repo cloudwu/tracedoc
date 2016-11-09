@@ -23,9 +23,10 @@ local mapping = tracedoc.changeset {
 	{ add_b, "b.x", "b.y" },
 }
 
-tracedoc.mapset(doc, mapping)
+tracedoc.mapchange(doc, mapping)
 
 doc.b.y = 3
 
-tracedoc.mapset(doc, mapping)
+tracedoc.mapchange(doc, mapping)
 
+tracedoc.mapupdate(doc, mapping, "b.")
