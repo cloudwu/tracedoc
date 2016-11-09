@@ -16,10 +16,10 @@ local function add_b(doc, x, y)
 end
 
 local mapping = tracedoc.changeset {
-	{ map "A1" , "a" },
-	{ map "A2" , "a" },
-	{ map "BX" , "b.x" },
-	{ map "BY" , "b.y" },
+	{ "A" , map "A1" , "a" },
+	{ "A" , map "A2" , "a" },
+	{ "B" , map "BX" , "b.x" },
+	{ "B" , map "BY" , "b.y" },
 	{ add_b, "b.x", "b.y" },
 }
 
@@ -29,4 +29,11 @@ doc.b.y = 3
 
 tracedoc.mapchange(doc, mapping)
 
-tracedoc.mapupdate(doc, mapping, "b.")
+print("Filter A")
+tracedoc.mapupdate(doc, mapping, "A")
+print("Filter B")
+tracedoc.mapupdate(doc, mapping, "B")
+print("Filter null")
+tracedoc.mapupdate(doc, mapping, "")
+print("Filter All")
+tracedoc.mapupdate(doc, mapping)

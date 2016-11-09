@@ -4,6 +4,7 @@ local setmetatable = setmetatable
 local getmetatable = getmetatable
 local type = type
 local rawset = rawset
+local table = table
 
 local tracedoc = {}
 
@@ -161,14 +162,33 @@ local function genkey(keys, key)
 	keys[key] = assert(load ("return function(doc) return doc.".. key .." end"))()
 end
 
+local function insert_tag(tags, tag, item, n)
+	local v = { table.unpack(item, n, #item) }
+	local t = tags[tag]
+	if not t then
+		tags[tag] = { v }
+	else
+		table.insert(t, v)
+	end
+	return v
+end
+
 function tracedoc.changeset(map)
 	local set = {
 		watching_n = 0,
 		watching = {} ,
 		mapping = {} ,
 		keys = {},
+		tags = {},
 	}
 	for _,v in ipairs(map) do
+		local tag = v[1]
+		if type(tag) == "string" then
+			v = insert_tag(set.tags, tag, v, 2)
+		else
+			v = insert_tag(set.tags, "", v, 1)
+		end
+
 		local n = #v
 		assert(n >=2 and type(v[1]) == "function")
 		if n == 2 then
@@ -263,24 +283,21 @@ function tracedoc.mapchange(doc, set, c)
 	return changes
 end
 
-function tracedoc.mapupdate(doc, set, prefix)
-	local lprefix = #prefix
-	local keys = set.keys
-	for key, funcs in pairs(set.watching) do
-		if key:sub(1, lprefix) == prefix then
-			local v = keys[key](doc)
-			do_funcs(doc, funcs, v)
-		end
-	end
+function tracedoc.mapupdate(doc, set, filter_tag)
 	local args = {}
-	for _, mapping in ipairs(set.mapping) do
-		local n = #mapping
-		for i=2,n do
-			local key = mapping[i]
-			local v = keys[key](doc)
-			args[i-1] = v
+	local keys = set.keys
+	for tag, items in pairs(set.tags) do
+		if tag == filter_tag or filter_tag == nil then
+			for _, mapping in ipairs(items) do
+				local n = #mapping
+				for i=2,n do
+					local key = mapping[i]
+					local v = keys[key](doc)
+					args[i-1] = v
+				end
+				mapping[1](doc, table.unpack(args,1,n-1))
+			end
 		end
-		mapping[1](doc, table.unpack(args,1,n-1))
 	end
 end
 
