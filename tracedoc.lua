@@ -72,6 +72,7 @@ local function doc_copy(doc, k, sub_doc, result, prefix)
 			if result then
 				local key = prefix and prefix .. k or k
 				result[key] = v
+				result._n = (result._n or 0) + 1
 			end
 		end
 	else
@@ -81,6 +82,7 @@ local function doc_copy(doc, k, sub_doc, result, prefix)
 				if result then
 					local key = prefix and prefix .. k or k
 					result[key] = tracedoc.null
+					result._n = (result._n or 0) + 1
 				end
 			end
 		end
@@ -90,6 +92,7 @@ local function doc_copy(doc, k, sub_doc, result, prefix)
 				if result then
 					local key = prefix and prefix .. k or k
 					result[key] = v
+					result._n = (result._n or 0) + 1
 				end
 			end
 		end
@@ -118,12 +121,14 @@ function tracedoc.commit(doc, result, prefix)
 			if result then
 				local key = prefix and prefix .. k or k
 				result[key] = tracedoc.null
+				result._n = (result._n or 0) + 1
 			end
 		elseif lastversion[k] ~= v then
 			lastversion[k] = v
 			if result then
 				local key = prefix and prefix .. k or k
 				result[key] = v
+				result._n = (result._n or 0) + 1
 			end
 		end
 		doc._changes[k] = nil
@@ -143,6 +148,118 @@ end
 
 function tracedoc.ignore(doc, enable)
 	rawset(doc, "_ignore", enable)	-- ignore it during commit when enable
+end
+
+----- change set
+
+local function genkey(keys, key)
+	if keys[key] then
+		return
+	end
+	key = key:gsub("(%.)(%d+)","[%2]")
+	key = key:gsub("^(%d+)","[%1]")
+	keys[key] = assert(load ("return function(doc) return doc.".. key .." end"))()
+end
+
+function tracedoc.changeset(map)
+	local set = {
+		watching_n = 0,
+		watching = {} ,
+		mapping = {} ,
+		keys = {},
+	}
+	for _,v in ipairs(map) do
+		local n = #v
+		assert(n >=2 and type(v[1]) == "function")
+		if n == 2 then
+			local f = v[1]
+			local k = v[2]
+			local tq = type(set.watching[k])
+			if tq == "nil" then
+				set.watching[k] = f
+				set.watching_n = set.watching_n + 1
+			elseif tq == "function" then
+				local q = { set.watching[k], f }
+				set.watching[k] = q
+			else
+				assert (tq == "table")
+				table.insert(set.watching[k], q)
+			end
+		else
+			table.insert(set.mapping, { table.unpack(v) })
+			for i = 2, #v do
+				genkey(set.keys, v[2])
+			end
+		end
+	end
+	return set
+end
+
+local function do_funcs(doc, funcs, v)
+	if v == tracedoc.null then
+		v = nil
+	end
+	if type(funcs) == "function" then
+		funcs(doc, v)
+	else
+		for _, func in ipairs(funcs) do
+			func(doc, v)
+		end
+	end
+end
+
+local function do_mapping(doc, mapping, changes, keys)
+	local args = {}
+	local n = #mapping
+	for i=2,n do
+		local key = mapping[i]
+		local v = changes[key]
+		if v == nil then
+			v = keys[key](doc)
+		elseif v == tracedoc.null then
+			v = nil
+		end
+		args[i-1] = v
+	end
+	mapping[1](doc, table.unpack(args,1,n-1))
+end
+
+function tracedoc.mapset(doc, set, c)
+	local changes = tracedoc.commit(doc, c or {})
+	local changes_n = changes._n or 0
+	if changes_n == 0 then
+		return changes
+	end
+	if changes_n > set.watching_n then
+		-- a lot of changes
+		for key, funcs in pairs(set.watching) do
+			local v = changes[key]
+			if v then
+				do_funcs(doc, funcs, v)
+			end
+		end
+	else
+		-- a lot of watching funcs
+		local watching_func = set.watching
+		for key, v in pairs(changes) do
+			local funcs = watching_func[key]
+			if funcs then
+				do_funcs(doc, funcs, v)
+			end
+		end
+	end
+	-- mapping
+	local keys = set.keys
+	for _, mapping in ipairs(set.mapping) do
+		for i=2,#mapping do
+			local key = mapping[i]
+			if changes[key] then
+				do_mapping(doc, mapping, changes, keys)
+				break
+			end
+		end
+	end
+	return changes
 end
 
 return tracedoc

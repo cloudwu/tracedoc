@@ -49,6 +49,7 @@ doc.c = { e = 5 } -- change table
 assert(doc.c.d == nil)
 doc.b = nil
 doc.d = setmetatable({}, { __tostring = function() return "userobject" end })	-- table with metatable is an userobject
+doc.e = { x = 1, y = 2 }
 
 dump(doc)
 
