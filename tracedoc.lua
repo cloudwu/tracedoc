@@ -29,7 +29,8 @@ local function doc_change(t, k, v)
 	t._keys[k] = true
 end
 
-tracedoc.null = setmetatable({} , { __tostring = function() return "NULL" end })	-- nil
+local NULL = setmetatable({} , { __tostring = function() return "NULL" end })	-- nil
+tracedoc.null = NULL
 local tracedoc_type = setmetatable({}, { __tostring = function() return "TRACEDOC" end })
 
 function tracedoc.new(init)
@@ -82,7 +83,7 @@ local function doc_copy(doc, k, sub_doc, result, prefix)
 				target_doc[k] = nil
 				if result then
 					local key = prefix and prefix .. k or k
-					result[key] = tracedoc.null
+					result[key] = NULL
 					result._n = (result._n or 0) + 1
 				end
 			end
@@ -121,7 +122,7 @@ function tracedoc.commit(doc, result, prefix)
 		elseif v == nil then
 			if result then
 				local key = prefix and prefix .. k or k
-				result[key] = tracedoc.null
+				result[key] = NULL
 				result._n = (result._n or 0) + 1
 			end
 		elseif lastversion[k] ~= v then
@@ -217,7 +218,7 @@ function tracedoc.changeset(map)
 end
 
 local function do_funcs(doc, funcs, v)
-	if v == tracedoc.null then
+	if v == NULL then
 		v = nil
 	end
 	if type(funcs) == "function" then
@@ -236,7 +237,7 @@ local function do_mapping(doc, mapping, changes, keys, args)
 		local v = changes[key]
 		if v == nil then
 			v = keys[key](doc)
-		elseif v == tracedoc.null then
+		elseif v == NULL then
 			v = nil
 		end
 		args[i-1] = v
