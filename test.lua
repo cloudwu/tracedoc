@@ -4,6 +4,7 @@ local doc = tracedoc.new {
 	a = 1,
 	b = { 1,2,3 },
 	c = { d = 4 , e = 5 },
+	d = {},
 }
 
 local function dump(doc)
@@ -24,6 +25,10 @@ local function dump(doc)
 end
 
 dump(doc)
+
+tracedoc.opaque(doc.d, true)
+doc.d.x = 1	-- d change ( d is opaque)
+doc.d.y = 2	-- d change ( d is opaque)
 
 doc.a = nil	-- change
 

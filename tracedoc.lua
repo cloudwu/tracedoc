@@ -60,11 +60,6 @@ function tracedoc.new(init)
 end
 
 local function doc_copy(doc, k, sub_doc)
-	local vt = getmetatable(sub_doc)
-	if vt ~= tracedoc_type and vt ~= nil then
-		doc[k] = sub_doc	-- copy ref because sub_doc is an object
-		return sub_doc
-	end
 	local target_doc = doc[k]
 	if type(target_doc) ~= "table" then
 		target_doc = tracedoc.new()
@@ -94,19 +89,32 @@ function tracedoc.commit(doc, result, prefix)
 	local lastversion = doc._lastversion
 	local changes = doc._changes
 	local keys = changes._keys
+	local dirty = false
 	for k in pairs(keys) do
 		local v = changes[k]
 		keys[k] = nil
+		local change_flag = true
 		if type(v) == "table" then
-			v = doc_copy(lastversion, k, v)
-		elseif v == nil then
-			if result then
-				local key = prefix and prefix .. k or k
-				result[key] = NULL
-				result._n = (result._n or 0) + 1
+			local vt = getmetatable(v)
+			if vt == nil or vt == tracedoc_type then
+				v = doc_copy(lastversion, k, v)
+				lastversion[k] = v
+				change_flag = false
+			elseif v ~= lastversion[k] then
+				lastversion[k] = v
+			else
+				change_flag = false
 			end
+		elseif v == nil then
+			v = NULL
+			-- lastversion[k] has already set to nil
 		elseif lastversion[k] ~= v then
 			lastversion[k] = v
+		else
+			change_flag = false
+		end
+		if change_flag then
+			dirty = true
 			if result then
 				local key = prefix and prefix .. k or k
 				result[key] = v
@@ -117,19 +125,36 @@ function tracedoc.commit(doc, result, prefix)
 	end
 	for k,v in pairs(lastversion) do
 		if getmetatable(v) == tracedoc_type then
-			if result then
+			if v._opaque then
+				if tracedoc.commit(v) and result then
+					result[k] = v
+					dirty = dirty
+				end
+			elseif result then
 				local key = (prefix and prefix .. k or k) .. "."
-				tracedoc.commit(v, result, key)
+				if not dirty then
+					local n = result._n
+					tracedoc.commit(v, result, key)
+					if n ~= result._n then
+						dirty = true
+					end
+				else
+					tracedoc.commit(v, result, key)
+				end
 			else
-				tracedoc.commit(v)
+				dirty = dirty or tracedoc.commit(v)
 			end
 		end
 	end
-	return result
+	return result or dirty
 end
 
 function tracedoc.ignore(doc, enable)
 	rawset(doc, "_ignore", enable)	-- ignore it during commit when enable
+end
+
+function tracedoc.opaque(doc, enable)
+	rawset(doc, "_opaque", enable)
 end
 
 ----- change set
