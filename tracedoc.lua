@@ -59,7 +59,7 @@ function tracedoc.new(init)
 	return doc
 end
 
-local function doc_copy(doc, k, sub_doc, result, prefix)
+local function doc_copy(doc, k, sub_doc)
 	local vt = getmetatable(sub_doc)
 	if vt ~= tracedoc_type and vt ~= nil then
 		doc[k] = sub_doc	-- copy ref because sub_doc is an object
@@ -71,31 +71,16 @@ local function doc_copy(doc, k, sub_doc, result, prefix)
 		doc[k] = target_doc
 		for k,v in pairs(sub_doc) do
 			target_doc[k] = v
-			if result then
-				local key = prefix and prefix .. k or k
-				result[key] = v
-				result._n = (result._n or 0) + 1
-			end
 		end
 	else
 		for k in pairs(target_doc) do
 			if sub_doc[k] == nil then
 				target_doc[k] = nil
-				if result then
-					local key = prefix and prefix .. k or k
-					result[key] = NULL
-					result._n = (result._n or 0) + 1
-				end
 			end
 		end
 		for k,v in pairs(sub_doc) do
 			if target_doc[k] ~= v then
 				target_doc[k] = v
-				if result then
-					local key = prefix and prefix .. k or k
-					result[key] = v
-					result._n = (result._n or 0) + 1
-				end
 			end
 		end
 	end
@@ -113,12 +98,7 @@ function tracedoc.commit(doc, result, prefix)
 		local v = changes[k]
 		keys[k] = nil
 		if type(v) == "table" then
-			if result then
-				local key = (prefix and prefix .. k or k) .. "."
-				v = doc_copy(lastversion, k, v, result, key)
-			else
-				v = doc_copy(lastversion, k, v)
-			end
+			v = doc_copy(lastversion, k, v)
 		elseif v == nil then
 			if result then
 				local key = prefix and prefix .. k or k
