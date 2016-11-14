@@ -30,9 +30,6 @@ tracedoc.opaque(doc.d, true)
 doc.d.x = 1	-- d change ( d is opaque)
 doc.d.y = 2	-- d change ( d is opaque)
 
-doc.a = nil	-- change
-
-assert(doc.a == nil)
 assert(doc.b[1] == 1)
 assert(doc.b[2] == 2)
 assert(doc.b[3] == 3)
@@ -40,9 +37,29 @@ assert(doc.c.d == 4)
 
 doc.b[1] = 0	-- change
 doc.b[2] = 2	-- not change
-doc.b[3] = nil	-- remove
 
 local tmp = doc.c
+
+dump(doc)
+
+doc.a = nil	-- clear doc.a
+assert(doc.a == nil)
+
+doc.b[3] = nil	-- remove 3
+table.remove(doc.b)	-- remove 2
+table.insert(doc.b , 5)	-- doc.b[2] = 5
+table.insert(doc.b , 6)	-- doc.b[3] = 6
+table.insert(doc.b , 7)	-- doc.b[4] = 7
+
+for k,v in ipairs(doc.b) do
+	print("doc.b[" .. k .. "]",v)
+end
+
+doc.e = "e"	-- add doc.e
+
+for k,v in pairs(doc) do
+	print("doc."..k , v)
+end
 
 dump(doc)
 

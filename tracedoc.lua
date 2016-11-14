@@ -7,13 +7,79 @@ local rawset = rawset
 local table = table
 
 local tracedoc = {}
+local NULL = setmetatable({} , { __tostring = function() return "NULL" end })	-- nil
+tracedoc.null = NULL
+local tracedoc_type = setmetatable({}, { __tostring = function() return "TRACEDOC" end })
+local tracedoc_len = setmetatable({} , { __mode = "kv" })
+
+local function doc_next(doc, last_key)
+	local lastversion = doc._lastversion
+	if last_key == nil or lastversion[last_key] ~= nil then
+		local next_key, v = next(lastversion, last_key)
+		if next_key ~= nil then
+			return next_key, doc[next_key]
+		end
+		last_key = nil
+	end
+
+	local changes = doc._changes._keys
+	while true do
+		local next_key = next(changes, last_key)
+		if next_key == nil then
+			return
+		end
+		local v = doc[next_key]
+		if v ~= nil then
+			return next_key, v
+		end
+		last_key = next_key
+	end
+end
 
 local function doc_pairs(doc)
-	return next, doc._lastversion
+	return doc_next, doc
+end
+
+local function find_length_after(doc, idx)
+	local v = doc[idx + 1]
+	if v == nil then
+		return idx
+	end
+	repeat
+		idx = idx + 1
+		v = doc[idx + 1]
+	until v == nil
+	tracedoc_len[doc] = idx
+	return idx
+end
+
+local function find_length_before(doc, idx)
+	if idx <= 1 then
+		tracedoc_len[doc] = nil
+		return 0
+	end
+	repeat
+		idx = idx - 1
+		v = doc[idx]
+	until v ~= nil
+	tracedoc_len[doc] = idx
+	return idx
 end
 
 local function doc_len(doc)
-	return #doc._lastversion
+	local len = tracedoc_len[doc]
+	if len == nil then
+		len = #doc._lastversion
+		tracedoc_len[doc] = len
+	end
+	if len == 0 then
+		return find_length_after(doc, 0)
+	end
+	local v = doc[len]
+	if v == nil then
+		return find_length_before(doc, len)
+	end
+	return find_length_after(doc, len)
 end
 
 local function doc_change(t, k, v)
@@ -29,13 +95,9 @@ local function doc_change(t, k, v)
 	t._keys[k] = true
 end
 
-local NULL = setmetatable({} , { __tostring = function() return "NULL" end })	-- nil
-tracedoc.null = NULL
-local tracedoc_type = setmetatable({}, { __tostring = function() return "TRACEDOC" end })
-
 function tracedoc.new(init)
 	local doc = {
-		_changes = { _keys = {} },
+		_changes = { _keys = {} , _doc = nil },
 		_lastversion = {},
 	}
 	doc._changes._doc = doc
