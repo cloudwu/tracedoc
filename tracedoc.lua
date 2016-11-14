@@ -179,8 +179,9 @@ function tracedoc.commit(doc, result, prefix)
 		if getmetatable(v) == tracedoc_type then
 			if v._opaque then
 				if tracedoc.commit(v) and result then
-					if result[k] == nil then
-						result[k] = v
+					local key = prefix and prefix .. k or k
+					if result[key] == nil then
+						result[key] = v
 						result._n = (result._n or 0) + 1
 					end
 					dirty = true
