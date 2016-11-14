@@ -67,11 +67,16 @@ doc.a = 2	-- change
 assert(doc.a == 2)
 doc.b = 2	-- change and delete table
 assert(doc.b == 2)
-doc.c = { e = 5 } -- change table
+local doc_c = { e = 5 }
+doc.c = doc_c -- change table
 assert(doc.c.d == nil)
 doc.b = nil
 doc.d = setmetatable({}, { __tostring = function() return "userobject" end })	-- table with metatable is an userobject
 doc.e = { x = 1, y = 2 }
+
+assert(tmp ~= doc.c)
+tmp = doc.c	-- update c
+assert(tmp ~= doc_c)
 
 dump(doc)
 

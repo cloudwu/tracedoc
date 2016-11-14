@@ -2,7 +2,7 @@ local tracedoc = require "tracedoc"
 
 local doc = tracedoc.new {}
 
-doc.a = 0
+doc.a = false
 doc.b = { x = 1, y = 2 }
 doc.c = { a = 3, b = 4 }
 
@@ -32,6 +32,8 @@ local mapping = tracedoc.changeset {
 }
 
 tracedoc.mapchange(doc, mapping)
+
+doc.a = 0
 
 doc.b.y = 3
 doc.c.b = 5

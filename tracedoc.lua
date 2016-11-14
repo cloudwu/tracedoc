@@ -83,6 +83,13 @@ local function doc_len(doc)
 end
 
 local function doc_change(t, k, v)
+	if type(v) == "table" then
+		local vt = getmetatable(v)
+		if vt == nil or vt == tracedoc_type then
+			-- deepcopy a new table
+			v = tracedoc.new(v)
+		end
+	end
 	rawset(t,k,v)
 	if v == nil then
 		if t._keys[k] then	-- already set
@@ -116,7 +123,6 @@ function tracedoc.new(init)
 		for k,v in pairs(init) do
 			doc[k] = v
 		end
-		tracedoc.commit(doc)
 	end
 	return doc
 end
@@ -155,30 +161,14 @@ function tracedoc.commit(doc, result, prefix)
 	for k in pairs(keys) do
 		local v = changes[k]
 		keys[k] = nil
-		local change_flag = true
-		if type(v) == "table" then
-			local vt = getmetatable(v)
-			if vt == nil or vt == tracedoc_type then
-				v = doc_copy(lastversion, k, v)
-				lastversion[k] = v
-				change_flag = false
-			elseif v ~= lastversion[k] then
-				lastversion[k] = v
-			else
-				change_flag = false
-			end
-		elseif v == nil then
-			v = NULL
-			-- lastversion[k] has already set to nil
-		elseif lastversion[k] ~= v then
+		if lastversion[k] ~= v then
 			lastversion[k] = v
-		else
-			change_flag = false
-		end
-		if change_flag then
 			dirty = true
 			if result then
 				local key = prefix and prefix .. k or k
+				if v == nil then
+					v = NULL
+				end
 				result[key] = v
 				result._n = (result._n or 0) + 1
 			end
@@ -190,7 +180,7 @@ function tracedoc.commit(doc, result, prefix)
 			if v._opaque then
 				if tracedoc.commit(v) and result then
 					result[k] = v
-					dirty = dirty
+					dirty = true
 				end
 			elseif result then
 				local key = (prefix and prefix .. k or k) .. "."
