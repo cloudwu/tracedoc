@@ -179,7 +179,10 @@ function tracedoc.commit(doc, result, prefix)
 		if getmetatable(v) == tracedoc_type then
 			if v._opaque then
 				if tracedoc.commit(v) and result then
-					result[k] = v
+					if result[k] == nil then
+						result[k] = v
+						result._n = (result._n or 0) + 1
+					end
 					dirty = true
 				end
 			elseif result then
