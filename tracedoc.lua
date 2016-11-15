@@ -177,25 +177,24 @@ function tracedoc.commit(doc, result, prefix)
 	end
 	for k,v in pairs(lastversion) do
 		if getmetatable(v) == tracedoc_type then
-			if v._opaque then
-				if tracedoc.commit(v) and result then
-					local key = prefix and prefix .. k or k
+			if result then
+				local key = prefix and prefix .. k or k
+				local change
+				if v._opaque then
+					change = tracedoc.commit(v)
+				else
+					local n = result._n
+					tracedoc.commit(v, result, key .. ".")
+					if n ~= result._n then
+						change = true
+					end
+				end
+				if change then
 					if result[key] == nil then
 						result[key] = v
 						result._n = (result._n or 0) + 1
 					end
 					dirty = true
-				end
-			elseif result then
-				local key = (prefix and prefix .. k or k) .. "."
-				if not dirty then
-					local n = result._n
-					tracedoc.commit(v, result, key)
-					if n ~= result._n then
-						dirty = true
-					end
-				else
-					tracedoc.commit(v, result, key)
 				end
 			else
 				dirty = dirty or tracedoc.commit(v)

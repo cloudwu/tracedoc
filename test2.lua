@@ -25,20 +25,32 @@ end
 local mapping = tracedoc.changeset {
 	{ "A" , map "A1" , "a" },
 	{ "A" , map "A2" , "a" },
+	{ "B" , map "B", "b" },
 	{ "B" , map "BX" , "b.x" },
-	{ "B" , map "BY" , "b.y" },
 	{ add_b, "b.x", "b.y" },
 	{ "C", add_c, "c" },
 }
 
-tracedoc.mapchange(doc, mapping)
+local function map(info)
+	print("====", info, "====")
+	tracedoc.mapchange(doc, mapping)
+	print("------------------")
+end
+
+map(1)
 
 doc.a = 0
 
 doc.b.y = 3
 doc.c.b = 5
 
-tracedoc.mapchange(doc, mapping)
+map(2)
+
+doc.a = 1
+
+doc.b.y = 4
+
+map(3)
 
 print("Filter A")
 tracedoc.mapupdate(doc, mapping, "A")
