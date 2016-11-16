@@ -197,7 +197,8 @@ function tracedoc.commit(doc, result, prefix)
 					dirty = true
 				end
 			else
-				dirty = dirty or tracedoc.commit(v)
+				local change = tracedoc.commit(v)
+				dirty = dirty or change
 			end
 		end
 	end
