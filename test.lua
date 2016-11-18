@@ -26,13 +26,16 @@ end
 
 dump(doc)
 
+doc.b = { 1,2 }	-- remove [3]
+
+dump(doc)
+
 tracedoc.opaque(doc.d, true)
 doc.d.x = 1	-- d change ( d is opaque)
 doc.d.y = 2	-- d change ( d is opaque)
 
 assert(doc.b[1] == 1)
 assert(doc.b[2] == 2)
-assert(doc.b[3] == 3)
 assert(doc.c.d == 4)
 
 doc.b[1] = 0	-- change

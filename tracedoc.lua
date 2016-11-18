@@ -127,29 +127,6 @@ function tracedoc.new(init)
 	return doc
 end
 
-local function doc_copy(doc, k, sub_doc)
-	local target_doc = doc[k]
-	if type(target_doc) ~= "table" then
-		target_doc = tracedoc.new()
-		doc[k] = target_doc
-		for k,v in pairs(sub_doc) do
-			target_doc[k] = v
-		end
-	else
-		for k in pairs(target_doc) do
-			if sub_doc[k] == nil then
-				target_doc[k] = nil
-			end
-		end
-		for k,v in pairs(sub_doc) do
-			if target_doc[k] ~= v then
-				target_doc[k] = v
-			end
-		end
-	end
-	return target_doc
-end
-
 function tracedoc.commit(doc, result, prefix)
 	if doc._ignore then
 		return result
@@ -161,7 +138,21 @@ function tracedoc.commit(doc, result, prefix)
 	for k in pairs(keys) do
 		local v = changes[k]
 		keys[k] = nil
-		if lastversion[k] ~= v then
+		local lastv = lastversion[k]
+		if getmetatable(lastv) == tracedoc_type and
+			getmetatable(v) == tracedoc_type then
+			-- clear lastv and copy v
+			for k in pairs(lastv) do
+				if v[k] == nil then
+					lastv[k] = nil
+				end
+			end
+			for k,v in pairs(v) do
+				if lastv[k] ~= v then
+					lastv[k] = v
+				end
+			end
+		elseif lastv ~= v or v == nil then
 			lastversion[k] = v
 			dirty = true
 			if result then
