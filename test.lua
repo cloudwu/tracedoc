@@ -26,9 +26,14 @@ end
 
 dump(doc)
 
-doc.b = { 1,2 }	-- remove [3]
+print "-----------------------------"
+
+doc.b[3] = nil
+doc.b = { 1,3 }	-- remove [3], change [2]
 
 dump(doc)
+
+do return end
 
 tracedoc.opaque(doc.d, true)
 doc.d.x = 1	-- d change ( d is opaque)

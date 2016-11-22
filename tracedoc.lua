@@ -141,17 +141,30 @@ function tracedoc.commit(doc, result, prefix)
 		if lastv ~= v or v == nil then
 			if getmetatable(lastv) == tracedoc_type and
 				getmetatable(v) == tracedoc_type then
-				-- diff lastv and v
+				-- diff lastv.lastversion and v
 				tracedoc.commit(v)	-- commit the changes of new v
-				for key, value in pairs(lastv) do
+				local lv = lastv._lastversion
+				local new_lv = v._lastversion
+				local changes_key = v._changes._keys
+				for key,oldv in pairs(lastv) do
 					local newv = v[key]
-					if newv == nil or newv ~= value then
-						v[key] = newv	-- key change, touch it
+					if newv == nil then
+						changes_key[key] = true
+					elseif newv ~= oldv then
+						changes_key[key] = true
+						new_lv[key] = lv[key]
+						v[key] = newv	-- change key, touch it
 					end
 				end
 				for key, value in pairs(v) do
-					if lastv[key] == nil then
+					if lv[key] == nil then
+						new_lv[key] = lv[key]
 						v[key] = value	-- new key, touch it
+					end
+				end
+				for key in pairs(lastv._changes._keys) do
+					if v[key] == nil then
+						changes_key[key] = true	-- key removed
 					end
 				end
 			else
