@@ -29,7 +29,7 @@ local function doc_next(doc, last_key)
 			return
 		end
 		local v = doc[next_key]
-		if v ~= nil then
+		if v ~= nil and lastversion[next_key] == nil then
 			return next_key, v
 		end
 		last_key = next_key
@@ -84,7 +84,7 @@ end
 local function doc_change(t, k, v)
 	if type(v) == "table" then
 		local vt = getmetatable(v)
-		if vt == nil or vt == tracedoc_type then
+		if vt == nil then
 			-- deepcopy a new table
 			v = tracedoc.new(v)
 		end
@@ -138,30 +138,34 @@ function tracedoc.commit(doc, result, prefix)
 		local v = changes[k]
 		keys[k] = nil
 		local lastv = lastversion[k]
-		if getmetatable(lastv) == tracedoc_type and
-			getmetatable(v) == tracedoc_type then
-			-- clear lastv and copy v
-			for k in pairs(lastv) do
-				if v[k] == nil then
-					lastv[k] = nil
+		if lastv ~= v or v == nil then
+			if getmetatable(lastv) == tracedoc_type and
+				getmetatable(v) == tracedoc_type then
+				-- diff lastv and v
+				tracedoc.commit(v)	-- commit the changes of new v
+				for key, value in pairs(lastv) do
+					local newv = v[key]
+					if newv == nil or newv ~= value then
+						v[key] = newv	-- key change, touch it
+					end
+				end
+				for key, value in pairs(v) do
+					if lastv[key] == nil then
+						v[key] = value	-- new key, touch it
+					end
+				end
+			else
+				dirty = true
+				if result then
+					local key = prefix and prefix .. k or k
+					if v == nil then
+						v = NULL
+					end
+					result[key] = v
+					result._n = (result._n or 0) + 1
 				end
 			end
-			for k,v in pairs(v) do
-				if lastv[k] ~= v then
-					lastv[k] = v
-				end
-			end
-		elseif lastv ~= v or v == nil then
 			lastversion[k] = v
-			dirty = true
-			if result then
-				local key = prefix and prefix .. k or k
-				if v == nil then
-					v = NULL
-				end
-				result[key] = v
-				result._n = (result._n or 0) + 1
-			end
 		end
 		doc._changes[k] = nil
 	end
