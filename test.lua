@@ -82,7 +82,7 @@ doc.b = nil
 doc.d = setmetatable({}, { __tostring = function() return "userobject" end })	-- table with metatable is an userobject
 doc.e = { x = 1, y = 2 }
 
-assert(tmp ~= doc.c)
+assert(tmp == doc.c)
 tmp = doc.c	-- update c
 assert(tmp ~= doc_c)
 

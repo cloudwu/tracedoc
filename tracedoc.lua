@@ -85,8 +85,26 @@ local function doc_change(t, k, v)
 	if type(v) == "table" then
 		local vt = getmetatable(v)
 		if vt == nil then
-			-- deepcopy a new table
-			v = tracedoc.new(v)
+			local lv = t._doc._lastversion[k]
+			if getmetatable(lv) ~= tracedoc_type then
+				-- gen a new table
+				v = tracedoc.new(v)
+			else
+				local keys = {}
+				for k in pairs(lv) do
+					keys[k] = true
+				end
+				-- deepcopy v
+				for k,v in pairs(v) do
+					lv[k] = v
+					keys[k] = nil
+				end
+				-- clear keys not exist in v
+				for k in pairs(keys) do
+					lv[k] = nil
+				end
+				return
+			end
 		end
 	end
 	rawset(t,k,v)
@@ -157,44 +175,14 @@ function tracedoc.commit(doc, result, prefix)
 		local lastv = lastversion[k]
 		keys[k] = nil
 		if lastv ~= v or v == nil then
-			if getmetatable(lastv) == tracedoc_type and
-				getmetatable(v) == tracedoc_type then
-				-- diff lastv.lastversion and v
-				tracedoc.commit(v)	-- commit the changes of new v
-				local lv = lastv._lastversion
-				local new_lv = v._lastversion
-				local changes_key = v._changes._keys
-				for key,oldv in pairs(lastv) do
-					local newv = v[key]
-					if newv == nil then
-						changes_key[key] = true
-					elseif newv ~= oldv then
-						changes_key[key] = true
-						new_lv[key] = lv[key]
-						v[key] = newv	-- change key, touch it
-					end
+			dirty = true
+			if result then
+				local key = prefix and prefix .. k or k
+				if v == nil then
+					v = NULL
 				end
-				for key, value in pairs(v) do
-					if lv[key] == nil then
-						new_lv[key] = lv[key]
-						v[key] = value	-- new key, touch it
-					end
-				end
-				for key in pairs(lastv._changes._keys) do
-					if v[key] == nil then
-						changes_key[key] = true	-- key removed
-					end
-				end
-			else
-				dirty = true
-				if result then
-					local key = prefix and prefix .. k or k
-					if v == nil then
-						v = NULL
-					end
-					result[key] = v
-					result._n = (result._n or 0) + 1
-				end
+				result[key] = v
+				result._n = (result._n or 0) + 1
 			end
 			lastversion[k] = v
 		end
