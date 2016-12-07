@@ -141,7 +141,7 @@ function tracedoc.dump(doc)
 	for k in next, doc._changes._keys do
 		table.insert(keys, k)
 	end
-	return string.format("last [%s]\nchanges [%s]\nkeys %s[%s]",table.concat(last, " "), table.concat(changes," "), doc._changes._keys, table.concat(keys," "))
+	return string.format("last [%s]\nchanges [%s]\nkeys [%s]",table.concat(last, " "), table.concat(changes," "), table.concat(keys," "))
 end
 
 function tracedoc.commit(doc, result, prefix)
@@ -155,6 +155,7 @@ function tracedoc.commit(doc, result, prefix)
 	for k in pairs(keys) do
 		local v = changes[k]
 		local lastv = lastversion[k]
+		keys[k] = nil
 		if lastv ~= v or v == nil then
 			if getmetatable(lastv) == tracedoc_type and
 				getmetatable(v) == tracedoc_type then
@@ -195,10 +196,9 @@ function tracedoc.commit(doc, result, prefix)
 					result._n = (result._n or 0) + 1
 				end
 			end
-			lastversion[k] = v	-- notice: if v == nil, add keys again
+			lastversion[k] = v
 		end
-		doc._changes[k] = nil
-		keys[k] = nil	-- should clear keys at the end
+		rawset(changes,k,nil)	-- don't mark k in keys
 	end
 	for k,v in pairs(lastversion) do
 		if getmetatable(v) == tracedoc_type then
