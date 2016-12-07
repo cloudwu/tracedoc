@@ -60,7 +60,7 @@ local function find_length_before(doc, idx)
 	end
 	repeat
 		idx = idx - 1
-	until doc[idx] ~= nil
+	until idx <=0 or doc[idx] ~= nil
 	tracedoc_len[doc] = idx
 	return idx
 end
