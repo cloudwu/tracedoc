@@ -128,8 +128,7 @@ end
 
 function tracedoc.dump(doc)
 	local last = {}
-	local lastversion = doc._lastversion
-	for k,v in next, lastversion do
+	for k,v in next, doc._lastversion do
 		table.insert(last, string.format("%s:%s",k,v))
 	end
 	local changes = {}
@@ -140,11 +139,9 @@ function tracedoc.dump(doc)
 	end
 	local keys = {}
 	for k in next, doc._changes._keys do
-		if lastversion[k] == nil then
-			table.insert(keys, k)
-		end
+		table.insert(keys, k)
 	end
-	return string.format("last [%s]\nchanges [%s]\nkeys [%s]",table.concat(last, " "), table.concat(changes," "), table.concat(keys," "))
+	return string.format("last [%s]\nchanges [%s]\nkeys %s[%s]",table.concat(last, " "), table.concat(changes," "), doc._changes._keys, table.concat(keys," "))
 end
 
 function tracedoc.commit(doc, result, prefix)
@@ -157,7 +154,6 @@ function tracedoc.commit(doc, result, prefix)
 	local dirty = false
 	for k in pairs(keys) do
 		local v = changes[k]
-		keys[k] = nil
 		local lastv = lastversion[k]
 		if lastv ~= v or v == nil then
 			if getmetatable(lastv) == tracedoc_type and
@@ -199,9 +195,10 @@ function tracedoc.commit(doc, result, prefix)
 					result._n = (result._n or 0) + 1
 				end
 			end
-			lastversion[k] = v
+			lastversion[k] = v	-- notice: if v == nil, add keys again
 		end
 		doc._changes[k] = nil
+		keys[k] = nil	-- should clear keys at the end
 	end
 	for k,v in pairs(lastversion) do
 		if getmetatable(v) == tracedoc_type then
