@@ -126,6 +126,27 @@ function tracedoc.new(init)
 	return doc
 end
 
+function tracedoc.dump(doc)
+	local last = {}
+	local lastversion = doc._lastversion
+	for k,v in next, lastversion do
+		table.insert(last, string.format("%s:%s",k,v))
+	end
+	local changes = {}
+	for k,v in next, doc._changes do
+		if tostring(k):byte() ~= 95 then	-- '_'
+			table.insert(changes, string.format("%s:%s",k,v))
+		end
+	end
+	local keys = {}
+	for k in next, doc._changes._keys do
+		if lastversion[k] == nil then
+			table.insert(keys, k)
+		end
+	end
+	return string.format("last [%s]\nchanges [%s]\nkeys [%s]",table.concat(last, " "), table.concat(changes," "), table.concat(keys," "))
+end
+
 function tracedoc.commit(doc, result, prefix)
 	if doc._ignore then
 		return result

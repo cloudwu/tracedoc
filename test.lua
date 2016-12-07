@@ -33,20 +33,20 @@ doc.b = { 1,3 }	-- remove [3], change [2]
 
 dump(doc)
 
-do return end
-
 tracedoc.opaque(doc.d, true)
 doc.d.x = 1	-- d change ( d is opaque)
 doc.d.y = 2	-- d change ( d is opaque)
 
 assert(doc.b[1] == 1)
-assert(doc.b[2] == 2)
+assert(doc.b[2] == 3)
 assert(doc.c.d == 4)
 
 doc.b[1] = 0	-- change
 doc.b[2] = 2	-- not change
 
 local tmp = doc.c
+
+print(tracedoc.dump(doc.b))
 
 dump(doc)
 
