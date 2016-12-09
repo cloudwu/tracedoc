@@ -179,9 +179,10 @@ function tracedoc.commit(doc, result, prefix)
 			if result then
 				local key = prefix and prefix .. k or k
 				if v == nil then
-					v = NULL
+					result[key] = NULL
+				else
+					result[key] = v
 				end
-				result[key] = v
 				result._n = (result._n or 0) + 1
 			end
 			lastversion[k] = v
