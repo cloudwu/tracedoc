@@ -280,7 +280,7 @@ function tracedoc.changeset(map)
 				set.watching[k] = q
 			else
 				assert (tq == "table")
-				table.insert(set.watching[k], q)
+				table.insert(set.watching[k], f)
 			end
 		else
 			table.insert(set.mapping, { table.unpack(v) })
