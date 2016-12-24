@@ -82,13 +82,26 @@ local function doc_len(doc)
 end
 
 local function doc_change(t, k, v)
+	local doc = t._doc
+	if not doc._dirty then
+		doc._dirty = true
+		local parent = doc._parent
+		while parent do
+			if parent._dirty then
+				break
+			end
+			parent._dirty = true
+			parent = parent._parent
+		end
+	end
 	if type(v) == "table" then
 		local vt = getmetatable(v)
 		if vt == nil then
-			local lv = t._doc._lastversion[k]
+			local lv = doc._lastversion[k]
 			if getmetatable(lv) ~= tracedoc_type then
 				-- gen a new table
 				v = tracedoc.new(v)
+				v._parent = doc
 			else
 				local keys = {}
 				for k in pairs(lv) do
@@ -110,17 +123,19 @@ local function doc_change(t, k, v)
 	rawset(t,k,v)
 	if v == nil then
 		if t._keys[k] then	-- already set
-			t._doc._lastversion[k] = nil
-		elseif t._doc._lastversion[k] == nil then	-- ignore since lastversion is nil
+			doc._lastversion[k] = nil
+		elseif doc._lastversion[k] == nil then	-- ignore since lastversion is nil
 			return
 		end
-		t._doc._lastversion[k] = nil
+		doc._lastversion[k] = nil
 	end
 	t._keys[k] = true
 end
 
 function tracedoc.new(init)
 	local doc = {
+		_dirty = false,
+		_parent = false,
 		_changes = { _keys = {} , _doc = nil },
 		_lastversion = {},
 	}
@@ -166,6 +181,7 @@ function tracedoc.commit(doc, result, prefix)
 	if doc._ignore then
 		return result
 	end
+	doc._dirty = false
 	local lastversion = doc._lastversion
 	local changes = doc._changes
 	local keys = changes._keys
@@ -190,7 +206,7 @@ function tracedoc.commit(doc, result, prefix)
 		rawset(changes,k,nil)	-- don't mark k in keys
 	end
 	for k,v in pairs(lastversion) do
-		if getmetatable(v) == tracedoc_type then
+		if getmetatable(v) == tracedoc_type and v._dirty then
 			if result then
 				local key = prefix and prefix .. k or k
 				local change
