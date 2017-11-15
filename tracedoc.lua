@@ -12,27 +12,37 @@ tracedoc.null = NULL
 local tracedoc_type = setmetatable({}, { __tostring = function() return "TRACEDOC" end })
 local tracedoc_len = setmetatable({} , { __mode = "kv" })
 
-local function doc_next(doc, last_key)
-	local lastversion = doc._lastversion
-	if last_key == nil or lastversion[last_key] ~= nil then
-		local next_key, v = next(lastversion, last_key)
-		if next_key ~= nil then
-			return next_key, doc[next_key]
+local function doc_next(doc, key)
+	-- at first, iterate all the keys changed
+	local change_keys = doc._changes._keys
+	if key == nil or change_keys[key] then
+		while true do
+			key = next(change_keys, key)
+			if key == nil then
+				break
+			end
+			local v = doc[key]
+			if v then
+				return key, v
+			end
 		end
-		last_key = nil
 	end
 
-	local changes = doc._changes._keys
+	-- and then, iterate all the keys in lastversion except keys changed
+
+	local lastversion = doc._lastversion
+
 	while true do
-		local next_key = next(changes, last_key)
-		if next_key == nil then
+		key = next(lastversion, key)
+		if key == nil then
 			return
 		end
-		local v = doc[next_key]
-		if v ~= nil and lastversion[next_key] == nil then
-			return next_key, v
+		if not change_keys[key] then
+			local v = doc[key]
+			if v then
+				return key, v
+			end
 		end
-		last_key = next_key
 	end
 end
 
@@ -81,6 +91,14 @@ local function doc_len(doc)
 	return find_length_after(doc, len)
 end
 
+local function doc_read(t, k)
+	if not t._keys[k] then
+		-- if k is not changed, return lastversion
+		return t._doc._lastversion[k]
+	end
+	-- v must be nil because k is already changed (but it is nil in t)
+end
+
 local function doc_change(t, k, v)
 	local doc = t._doc
 	if not doc._dirty then
@@ -99,36 +117,29 @@ local function doc_change(t, k, v)
 		if vt == nil then
 			local lv = doc._lastversion[k]
 			if getmetatable(lv) ~= tracedoc_type then
-				-- gen a new table
-				v = tracedoc.new(v)
-				v._parent = doc
-			else
-				local keys = {}
-				for k in pairs(lv) do
-					keys[k] = true
-				end
-				-- deepcopy v
-				for k,v in pairs(v) do
-					lv[k] = v
-					keys[k] = nil
-				end
-				-- clear keys not exist in v
-				for k in pairs(keys) do
-					lv[k] = nil
-				end
-				return
+				-- last version is not a table, new a empty one
+				lv = tracedoc.new()
+				lv._parent = doc
+				doc._lastversion[k] = lv
 			end
+			local keys = {}
+			for k in pairs(lv) do
+				keys[k] = true
+			end
+			-- deepcopy v
+			for k,v in pairs(v) do
+				lv[k] = v
+				keys[k] = nil
+			end
+			-- clear keys not exist in v
+			for k in pairs(keys) do
+				lv[k] = nil
+			end
+			-- don't cache sub table into t, we need trigger __index again.
+			return
 		end
 	end
 	rawset(t,k,v)
-	if v == nil then
-		if t._keys[k] then	-- already set
-			doc._lastversion[k] = nil
-		elseif doc._lastversion[k] == nil then	-- ignore since lastversion is nil
-			return
-		end
-		doc._lastversion[k] = nil
-	end
 	t._keys[k] = true
 end
 
@@ -141,7 +152,7 @@ function tracedoc.new(init)
 	}
 	doc._changes._doc = doc
 	setmetatable(doc._changes, {
-		__index = doc._lastversion,
+		__index = doc_read,
 		__newindex = doc_change,
 	})
 	setmetatable(doc, {
@@ -186,24 +197,24 @@ function tracedoc.commit(doc, result, prefix)
 	local changes = doc._changes
 	local keys = changes._keys
 	local dirty = false
-	for k in pairs(keys) do
-		local v = changes[k]
-		local lastv = lastversion[k]
-		keys[k] = nil
-		if lastv ~= v or v == nil then
-			dirty = true
-			if result then
-				local key = prefix and prefix .. k or k
-				if v == nil then
-					result[key] = NULL
-				else
-					result[key] = v
+	if next(keys) ~= nil then
+		local changes_mt = getmetatable(changes)
+		setmetatable(changes,nil)
+		for k in next, keys do
+			local v = changes[k]
+			keys[k] = nil
+			changes[k] = nil
+			if lastversion[k] ~= v then
+				dirty = true
+				if result then
+					local key = prefix and prefix .. k or k
+					result[key] = v == nil and NULL or v
+					result._n = (result._n or 0) + 1
 				end
-				result._n = (result._n or 0) + 1
+				lastversion[k] = v
 			end
-			lastversion[k] = v
 		end
-		rawset(changes,k,nil)	-- don't mark k in keys
+		setmetatable(changes,changes_mt)
 	end
 	for k,v in pairs(lastversion) do
 		if getmetatable(v) == tracedoc_type and v._dirty then
