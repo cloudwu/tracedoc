@@ -14,7 +14,7 @@ local tracedoc_len = setmetatable({} , { __mode = "kv" })
 
 local function doc_next(doc, key)
 	-- at first, iterate all the keys changed
-	local change_keys = doc._changes._keys
+	local change_keys = doc._keys
 	if key == nil or change_keys[key] then
 		while true do
 			key = next(change_keys, key)
@@ -91,16 +91,15 @@ local function doc_len(doc)
 	return find_length_after(doc, len)
 end
 
-local function doc_read(t, k)
-	if not t._keys[k] then
-		-- if k is not changed, return lastversion
-		return t._doc._lastversion[k]
+local function doc_read(doc, k)
+	if doc._keys[k] then
+		return doc._changes[k]
 	end
-	-- v must be nil because k is already changed (but it is nil in t)
+	-- if k is not changed, return lastversion
+	return doc._lastversion[k]
 end
 
-local function doc_change(t, k, v)
-	local doc = t._doc
+local function doc_change(doc, k, v)
 	if not doc._dirty then
 		doc._dirty = true
 		local parent = doc._parent
@@ -135,33 +134,33 @@ local function doc_change(t, k, v)
 			for k in pairs(keys) do
 				lv[k] = nil
 			end
-			-- don't cache sub table into t, we need trigger __index again.
+			-- don't cache sub table into doc._changes
+			doc._changes[k] = nil
+			doc._keys[k] = nil
 			return
 		end
 	end
-	rawset(t,k,v)
-	t._keys[k] = true
+	doc._changes[k] = v
+	doc._keys[k] = true
 end
+
+local doc_mt = {
+	__newindex = doc_change,
+	__index = doc_read,
+	__pairs = doc_pairs,
+	__len = doc_len,
+	__metatable = tracedoc_type,	-- avoid copy by ref
+}
 
 function tracedoc.new(init)
 	local doc = {
 		_dirty = false,
 		_parent = false,
-		_changes = { _keys = {} , _doc = nil },
+		_changes = {},
+		_keys = {},
 		_lastversion = {},
 	}
-	doc._changes._doc = doc
-	setmetatable(doc._changes, {
-		__index = doc_read,
-		__newindex = doc_change,
-	})
-	setmetatable(doc, {
-		__newindex = doc._changes,
-		__index = doc._changes,
-		__pairs = doc_pairs,
-		__len = doc_len,
-		__metatable = tracedoc_type,	-- avoid copy by ref
-	})
+	setmetatable(doc, doc_mt)
 	if init then
 		for k,v in pairs(init) do
 			doc[k] = v
@@ -172,17 +171,15 @@ end
 
 function tracedoc.dump(doc)
 	local last = {}
-	for k,v in next, doc._lastversion do
+	for k,v in pairs(doc._lastversion) do
 		table.insert(last, string.format("%s:%s",k,v))
 	end
 	local changes = {}
-	for k,v in next, doc._changes do
-		if tostring(k):byte() ~= 95 then	-- '_'
-			table.insert(changes, string.format("%s:%s",k,v))
-		end
+	for k,v in pairs(doc._changes) do
+		table.insert(changes, string.format("%s:%s",k,v))
 	end
 	local keys = {}
-	for k in next, doc._changes._keys do
+	for k in pairs(doc._keys) do
 		table.insert(keys, k)
 	end
 	return string.format("last [%s]\nchanges [%s]\nkeys [%s]",table.concat(last, " "), table.concat(changes," "), table.concat(keys," "))
@@ -195,11 +192,9 @@ function tracedoc.commit(doc, result, prefix)
 	doc._dirty = false
 	local lastversion = doc._lastversion
 	local changes = doc._changes
-	local keys = changes._keys
+	local keys = doc._keys
 	local dirty = false
 	if next(keys) ~= nil then
-		local changes_mt = getmetatable(changes)
-		setmetatable(changes,nil)
 		for k in next, keys do
 			local v = changes[k]
 			keys[k] = nil
@@ -214,7 +209,6 @@ function tracedoc.commit(doc, result, prefix)
 				lastversion[k] = v
 			end
 		end
-		setmetatable(changes,changes_mt)
 	end
 	for k,v in pairs(lastversion) do
 		if getmetatable(v) == tracedoc_type and v._dirty then
