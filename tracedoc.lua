@@ -120,6 +120,11 @@ local function doc_change(doc, k, v)
 				lv = tracedoc.new()
 				lv._parent = doc
 				doc._lastversion[k] = lv
+			elseif doc[k] == nil then
+				-- this version is clear first, deepcopy lastversion one
+				lv = tracedoc.new(lv)
+				lv._parent = doc
+				doc._lastversion[k] = lv
 			end
 			local keys = {}
 			for k in pairs(lv) do
