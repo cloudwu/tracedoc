@@ -163,7 +163,12 @@ function tracedoc.new(init)
 	setmetatable(doc, doc_mt)
 	if init then
 		for k,v in pairs(init) do
-			doc[k] = v
+			-- deepcopy v
+			if getmetatable(v) == tracedoc_type then
+				doc[k] = tracedoc.new(v)
+			else
+				doc[k] = v
+			end
 		end
 	end
 	return doc
