@@ -381,7 +381,7 @@ function tracedoc.mapchange(doc, set, c)
 	for _, mapping in ipairs(set.mapping) do
 		for i=2,#mapping do
 			local key = mapping[i]
-			if changes[key] then
+			if changes[key] ~= nil then
 				do_mapping(doc, mapping, changes, keys, tmp)
 				break
 			end
