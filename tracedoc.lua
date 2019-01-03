@@ -22,7 +22,7 @@ local function doc_next(doc, key)
 				break
 			end
 			local v = doc[key]
-			if v then
+			if v ~= nil then
 				return key, v
 			end
 		end
@@ -39,7 +39,7 @@ local function doc_next(doc, key)
 		end
 		if not change_keys[key] then
 			local v = doc[key]
-			if v then
+			if v ~= nil then
 				return key, v
 			end
 		end
@@ -361,7 +361,7 @@ function tracedoc.mapchange(doc, set, c)
 		-- a lot of changes
 		for key, funcs in pairs(set.watching) do
 			local v = changes[key]
-			if v then
+			if v ~= nil then
 				do_funcs(doc, funcs, v)
 			end
 		end
