@@ -1,0 +1,125 @@
+local tracedoc = require "app.tracedoc"
+
+local doc = tracedoc.new {
+    a = 1,
+    b = { 1,2,3 },
+    c = { d = 4 , e = 5 },
+    d = {},
+}
+
+local function dump1(doc)
+    local changes = tracedoc.commit(doc, {})
+    print("Dump:")
+    for k,v in pairs(doc) do
+        print(k,v)
+        if type(v) == "table" then
+            for k, v in pairs(v) do
+                print("\t",k,v)
+            end
+        end
+    end
+    print("changes:")
+    for k,v in pairs(changes) do
+        print(k,v)
+    end
+end
+
+dump1(doc)
+
+dump(doc,"doc",100)
+print "-----------------------------"
+
+doc.b[3] = nil
+doc.b = { 1,3 } -- remove [3], change [2]
+dump(doc,"doc222",100)
+
+-- 结果是 b直接被清空了
+-- "doc" = {
+--     "_changes" = {
+--         "_doc"  = *REF*
+--         "_keys" = {
+--         }
+--     }
+--     "_dirty"       = false
+--     "_lastversion" = {
+--         "a" = 1
+--         "b" = {
+--             "_changes" = {
+--                 "_doc"  = *REF*
+--                 "_keys" = {
+--                 }
+--             }
+--             "_dirty"       = false
+--             "_lastversion" = {
+--                 1 = 1
+--                 2 = 2
+--                 3 = 3
+--             }
+--             "_parent"      = *REF*
+--         }
+--         "c" = {
+--             "_changes" = {
+--                 "_doc"  = *REF*
+--                 "_keys" = {
+--                 }
+--             }
+--             "_dirty"       = false
+--             "_lastversion" = {
+--                 "d" = 4
+--                 "e" = 5
+--             }
+--             "_parent"      = *REF*
+--         }
+--         "d" = {
+--             "_changes" = {
+--                 "_doc"  = *REF*
+--                 "_keys" = {
+--                 }
+--             }
+--             "_dirty"       = false
+--             "_lastversion" = {
+--             }
+--             "_parent"      = *REF*
+--         }
+--     }
+--     "_parent"      = false
+-- }
+-- -----------------------------
+-- "doc222" = {
+--     "_changes" = {
+--         "_doc"  = *REF*
+--         "_keys" = {
+--         }
+--     }
+--     "_dirty"       = true
+--     "_lastversion" = {
+--         "a" = 1
+--         "b" = {
+--         }
+--         "c" = {
+--             "_changes" = {
+--                 "_doc"  = *REF*
+--                 "_keys" = {
+--                 }
+--             }
+--             "_dirty"       = false
+--             "_lastversion" = {
+--                 "d" = 4
+--                 "e" = 5
+--             }
+--             "_parent"      = *REF*
+--         }
+--         "d" = {
+--             "_changes" = {
+--                 "_doc"  = *REF*
+--                 "_keys" = {
+--                 }
+--             }
+--             "_dirty"       = false
+--             "_lastversion" = {
+--             }
+--             "_parent"      = *REF*
+--         }
+--     }
+--     "_parent"      = false
+-- }
